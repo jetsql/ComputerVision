@@ -1,15 +1,26 @@
-store_path_base = "C:\Users\2102048\pythonCV\AI_Project"
+import datetime,time
+from  datetime import datetime, timedelta
+import shutil
+import os.path
+#"U:/L3C_AI_Project/X-Ray_cut_image/"
+store_path_base = "D:/L3C_AI_Project/X-Ray_cut_image/"
 key=0
 
 while 1:
+    #開始時間
     start=datetime.now()
     key=key+1
-    print(key)
-    if exists ("1614051150400.png",0.5)or exists("1614065756317.png",0.5):
+    print('key',key)
+    #如果有存在(exists)圖片就執行
+    if  exists ("1614051150400.png",0.5)or exists("1614065756317.png",0.5):
         try:
             x1=find("1614051150400.png")or find("1614065756317.png")
+           #在script內抓圖，抓取reg(事先定義好的Region物件)內的圖像並存檔
             y1=capture(x1)
+            #產生存檔檔名
             new_path = store_path_base +"Type1_"+time.strftime('%Y-%m-%d_%H-%M-%S') +".png"
+            #移動至目錄(圖,路徑)
+            #os.path.join() 將多個路徑組合
             shutil.move(y1,os.path.join(new_path)) #move img to destination
             print("get type1")
         except:
@@ -41,6 +52,11 @@ while 1:
             print("get_type4")
         except:
             print("type4 Error!")
+    
+    ###
+    else:
+        print("NoneImage")
+    ####
     end=datetime.now()
     gap=(end-start)
     print("detect_time:",gap.seconds)
