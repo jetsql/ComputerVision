@@ -12,19 +12,37 @@ import pandas as pd
 from PIL import Image,ImageDraw
 import matplotlib.pyplot as plt
 import time #sleep 用
-##########規定用[\\]當路徑
+##########規定用[\\]當路徑##############
 
 
-# ## 步驟1:設定閥值過濾sikulix截圖，判別有切兩刀
+# ## Test影像中的顏色
 
-# In[2]:
+# In[13]:
+
+
+def get_RGB(file,x,y):
+    img=cv2.imread(file)
+    (B,G,R)=cv2.split(img)
+    b,g,r=B[y,x],G[y,x],R[y,x]
+    cv2.ellipse(img,(x,y),(5,5),0,0,360,(0,0,255),3)
+    
+    cv2.imshow('img',img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    print("RGB={},{},{}".format(r,g,b))
+# get_RGB('C://Users//2102048//pythonCV//find_cut//cuttemp//Target_2021-06-09 202047.995411_01.jpg',50,50)
+
+
+# ## 步驟1:設定閥值過濾截圖，判別有切兩刀
+
+# In[14]:
 
 
 #順序，先轉成二值化閥值，僅有0或255，再將影像轉成numpy，之後遍部numpy找尋0(黑色元素)
 #並且統計一條黑色元素跟兩條黑色元素的差異，來判斷有切沒切
 
-#find_CuttingLine參數(路徑參數,要不要截圖參數)
-def find_CuttingLine(file,control):
+#find_CuttingLine參數(路徑參數,要不要顯示參數)
+def find_CuttingLine_o(file,control):
     #開檔
     img= cv2.imread(file)
     #取長寬
@@ -107,9 +125,111 @@ def find_CuttingLine(file,control):
         return 0
 
 
+# In[15]:
+
+
+def crop_calculus(img,output_path):
+    #計算當前影像長寬
+    heigh,width=img.shape
+    #宣告放黑色元素array
+    Black_Pixel=[]
+    #遍部所有pixel，0黑、255白
+    for y in range(heigh):
+        for x in range(width):
+            #取出pixel
+            pixel=img[y,x]
+            #加到array
+            Black_Pixel.append(pixel)
+    #合併
+    ary=np.array(Black_Pixel)
+
+    #numpy轉圖
+    picture=ary.reshape(heigh,width)
+    #直接拿dataframe算切割線pixel
+    df=pd.DataFrame(picture)
+    Shape=df.shape
+    df.to_csv(output_path+'cut_'+'001'+'.csv')
+    total=0
+    #取矩陣50%正負5區域，來計算pixel
+    for row in range(int(0.490*Shape[0]),int(0.510*Shape[0])):
+        for column in range(Shape[1]):
+            count=(df.iloc[row,column]==0).sum()
+            total+=count
+    return total
+
+
+# In[16]:
+
+
+#順序，先轉成二值化閥值，僅有0或255，再將影像轉成numpy，之後遍部numpy找尋0(黑色元素)
+#並且統計一條黑色元素跟兩條黑色元素的差異，來判斷有切沒切
+
+#find_CuttingLine參數(路徑參數,要不要顯示參數)
+def find_CuttingLine(file,control,output_path):
+    #開檔
+    img= cv2.imread(file)
+    #取長寬
+    c_column,c_row,color=img.shape
+    img= cv2.imread(file,0)
+    #二值化
+    ########################################
+    thresh_cut=130
+    image_Trunc=cv2.threshold(img,thresh_cut,255,cv2.THRESH_BINARY)[1]
+    #########################################
+
+    #分左邊右邊，辨識完全黑
+    point_left_1=(0,0)
+    point_left_2=(int((c_row/2)),int(c_column))
+    crop_left=image_Trunc[point_left_1[1]:point_left_2[1],point_left_1[0]:point_left_2[0]]
+    #print('=====',crop_left.shape)
+    
+    point_right_1=(int((c_row/2)),0)
+    point_right_2=(int((c_row)),int(c_column))
+    crop_right=image_Trunc[point_right_1[1]:point_right_2[1],point_right_1[0]:point_right_2[0]]
+    #print('=====',crop_right.shape)
+    
+    #左邊右邊影像list
+    count_list=[crop_left,crop_right]
+    name_list=['左邊','右邊']
+    sum_list=[]
+    
+    #簡化成call function去算pixel，回傳總pixel數
+    for i in range(len(count_list)):
+        total=crop_calculus(count_list[i],output_path)
+        sum_list.append(total)
+        print (name_list[i],total)
+
+    #要不要顯示圖
+    if control==1:
+        plt.imshow(image_Trunc,cmap='gray',aspect='auto')
+        plt.show()
+    ###################LOG處##########################
+    
+    #判斷sum_list[0]整張、sum_list[1]左邊、sum_list[2]右邊
+    total_pixel=sum_list[0]+sum_list[1]
+    #0代表刪，1代表留
+    if total>0:
+        #計算差距比率，左右佔整張超過80%也要刪
+        gap1=sum_list[0]/total_pixel
+        gap2=sum_list[1]/total_pixel
+        if gap1>0.8 or gap2>0.8:
+            return 0
+        #低於門檻要刪
+        elif total_pixel<2000:
+            return 0
+        #左右任一邊全黑要刪
+        elif sum_list[0]>9000 or sum_list[1]>9000:
+            return 0
+        else:
+            return 1
+    #完全沒pixel要刪
+    else:
+        return 0
+
+
 # ## 使用步驟1，並存ok影像
 
-# In[3]:
+# In[17]:
 
 
 #Use_function(Image,csv name)
@@ -129,7 +249,7 @@ def use_find_CuttingLine(input_path,output_path):
 
         for k,f in enumerate(file):
             #跑判別切割pixel的function，若符合兩刀會回傳1
-            save=find_CuttingLine(f,1)
+            save=find_CuttingLine(f,1,output_path)
             if save==1:
                 save_list.append(f)
         #若有重複留最後
@@ -155,9 +275,16 @@ def use_find_CuttingLine(input_path,output_path):
         print(file_list[i],'資料夾篩選結果',save_list)
 
 
+# In[18]:
+
+
+# path='C:\\Users\\2102048\\pythonCV\\'
+# use_find_CuttingLine(path+'find_cut\\screen\\',path+'find_cut\\temp')
+
+
 # ## 步驟2:將ok影像切割左邊右邊
 
-# In[4]:
+# In[19]:
 
 
 #原始資料夾,切完存的資料夾
@@ -184,13 +311,13 @@ def precutting(input_path,output_path):
                 #設定座標取左
                 #用相對位置，剪掉一些外框
                 point_left_1=(50,50)
-                point_left_2=(int((c_row/2)-40),int(c_column-20))
+                point_left_2=(int((c_row/2)-20),int(c_column-50))
                 crop_left=img[point_left_1[1]:point_left_2[1],point_left_1[0]:point_left_2[0]]
                 save_left=name+'_01.jpg'
                 cv2.imwrite(output_path+save_left,crop_left)
                 #設定座標取右
                 #用相對位置，剪掉一些外框
-                point_right_1=(int((c_row/2)+40),50)
+                point_right_1=(int((c_row/2)+20),50)
                 point_right_2=(int(c_row-20),int(c_column-50))
                 crop_right=img[point_right_1[1]:point_right_2[1],point_right_1[0]:point_right_2[0]]
                 save_right=name+'_02.jpg'
@@ -199,7 +326,7 @@ def precutting(input_path,output_path):
             #刪除資料夾
             #整個刪掉在建立新的
             shutil.rmtree(input_path)
-            os.mkdir(input_path)
+            os.mkdir(input_path[0:-1])
                 
             print("分割OK")
             return 1
@@ -210,9 +337,16 @@ def precutting(input_path,output_path):
         return 0
 
 
+# In[20]:
+
+
+# path='C:\\Users\\2102048\\pythonCV\\'
+# precutting(path+'find_cut\\temp\\',path+'find_cut\\cuttemp')
+
+
 # ## 步驟3:影像處理(霍夫曼取直線)
 
-# In[62]:
+# In[21]:
 
 
 ### 二值化&霍夫曼直線(處理過的圖像,原圖,要不要截圖)
@@ -237,7 +371,7 @@ def line(im_Bin,Im,input_path,output_path,name,control):
         
         #直線檢測--霍夫直線變換
         #threshold:判斷直線點數的閾值; minLineLength：短於此的線段將被拒絕; maxLineGap 線段之間允許的最大間隙，將它們視為一條線
-        lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=1) #霍夫直線變換
+        lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=2) #霍夫直線變換
         lines1 = lines[:, 0, :]  # 提取為二維
         for x1, y1, x2, y2 in lines1[:]:
             if (((0<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column))):
@@ -347,29 +481,29 @@ def line(im_Bin,Im,input_path,output_path,name,control):
 
 # # Test
 
-# In[77]:
+# In[170]:
 
 
-# img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+# img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cuttemp\\Target_2021-06-09 202057.880432_01.jpg')
 # img_gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 # #降造(高斯平滑)
 # img_blurred=cv2.GaussianBlur(img_gray,(3,3),0)
 
 # #reload原圖
-# og_img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+# og_img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cuttemp\\Target_2021-06-09 202057.880432_01.jpg')
 
 # #二值化取mark (二值化閥水平)
 # thresh_mark=180
 # mark_bin=cv2.threshold(img_blurred,thresh_mark,255,cv2.THRESH_BINARY)[1]
-# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//mark_01.jpg',mark_bin)
-# mark_x,mark_y=line(mark_bin,img,'C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\','mark',1)
+# cv2.imwrite('C:\\Users\\2102048\\pythonCV\\find_cut\\cutresult\\mark_01.jpg',mark_bin)
+# mark_x,mark_y=line(mark_bin,img,'C:\\Users\\2102048\\pythonCV\\find_cut\\cuttemp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cutresult\\','mark',1)
 
-# img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+# img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cuttemp\\Target_2021-06-09 202057.880432_01.jpg')
 
 # thresh_cut=130
 # cut_bin=cv2.threshold(img_blurred,thresh_cut,255,cv2.THRESH_BINARY)[1]
 # cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//cut_01.jpg',cut_bin)
-# cut_x,cut_y=line(cut_bin,img,'C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\','cut',1)
+# cut_x,cut_y=line(cut_bin,img,'C:\\Users\\2102048\\pythonCV\\find_cut\\cuttemp\\Target_2021-06-09 202057.880432_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\','cut',1)
 
 
 # #取影像大小，設定取霍夫曼區域
@@ -385,7 +519,7 @@ def line(im_Bin,Im,input_path,output_path,name,control):
 # blur= cv2.GaussianBlur(dilation, (5, 5), 0) # 用高斯平滑處理原影象降噪 
 # #canny邊緣檢測
 # canny = cv2.Canny(blur, 40, 120) #low_threshold:40, high_threshold:120
-# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//Canny_001_01.jpg',canny)
+# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cutresult//Canny_001_01.jpg',canny)
 # plt.imshow(canny,cmap='gray')
 # plt.title('test')
 # plt.show()
@@ -436,7 +570,7 @@ def line(im_Bin,Im,input_path,output_path,name,control):
 
 # ## 步驟四，計算角落
 
-# In[84]:
+# In[22]:
 
 
 #參數(照片角落順序,輸入路徑,輸出路徑,要不要顯示影像)
@@ -580,7 +714,7 @@ def Image_processing_calculation(order,input_path,output_path,control):
 
 # ## Test
 
-# In[82]:
+# In[36]:
 
 
 # Image_processing_calculation(1,'C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\',0)
@@ -588,11 +722,12 @@ def Image_processing_calculation(order,input_path,output_path,control):
 
 # ## 步驟五:換算真實座標
 
-# In[7]:
+# In[23]:
 
 
+#########原始存檔###########
 #換算距離成真實數值
-def real_measure(table,output_path,name):
+def real_measure_o(table,output_path,name):
     #放8個點位置
     point_dic={'sheet_id':[],
                 'point_1':[],
@@ -659,9 +794,56 @@ def real_measure(table,output_path,name):
     return(transform)
 
 
+# In[37]:
+
+
+#換算距離成真實數值
+def real_measure(table,output_path,name):
+    #開始換算
+    stendard=400
+    #存結果
+    point_list=[[]]
+    for i in range(8):
+        point=table.iloc[i,0]
+        if point>0:
+            point=stendard+(point*4.1998)
+            point_list.append([point])
+        else:
+            point_list.append([0])
+    point_table = pd.DataFrame(point_list,columns=['0'])
+    
+    #變動統一index，刪除標題columns
+    point_table=point_table.drop(point_table.index[[0,0]])
+
+#     print("=======量測table======")
+#     print(point_table)
+    #判斷量測點個別是否ok/ng
+    judge_table,state=judge_specification(point_table)
+    transform_judge=pd.DataFrame(judge_table)
+    
+    #判斷整片精度狀況OK/NG
+    if state==0:
+        df_result=transform_judge
+        recode='此片正常'
+#         print(transform_real)
+    else:
+        #刪除標題columns
+        transform_judge=transform_judge.drop(transform_judge.index[[0,0]])
+        #print(transform_judge)
+        #結合原本的
+        df_result=pd.concat([point_table,transform_judge],axis=1)
+        recode='此片異常'
+#         print(df_result) 
+    print("=========real===========")
+    print(recode)
+    print(df_result)
+    df_result.to_csv(output_path+'result_'+name+'.csv')
+    return(df_result)
+
+
 # ## 步驟六:使用步驟4、5分角落塞值
 
-# In[88]:
+# In[25]:
 
 
 def x_ray_cutting(input_path,output_path):
@@ -717,16 +899,86 @@ def x_ray_cutting(input_path,output_path):
     print(transpose_total_table)
     #換算成真實值
     #(pixel的table,存檔路徑,檔名)
-    real_table=real_measure(transpose_total_table,output_path,str('{:0>3d}').format(number))
-                
+    real_table=real_measure(transpose_total_table,output_path,str('{:0>3d}').format(number))          
     #刪除資料夾
     #整個刪掉在建立新的
     shutil.rmtree(input_path)
     os.mkdir(input_path)
+    
+    return real_table
 
 
+# ## 步驟7，判斷OK、NG
 
-# ## 參數調整test
+# In[26]:
+
+
+def specification(shift):
+    #撰寫時，工程有shift spec 100
+    spec=400+shift
+    uper=spec+100
+    lower=spec-100
+    return uper,lower
+def judge_specification(table):
+    #取得檢測標準，撰寫時工程有shift spec100，要改標準改這邊
+    uper,lower=specification(100)
+
+    spec_list=[[]]
+    #單點NG全部都NG
+    NG=0
+    for i in range(8):
+        point=table.iloc[i,0]
+        if point<lower or point >uper:
+            spec_list.append(['NG'])
+            NG+=1
+        else:
+            spec_list.append(['OK'])
+    spec_list = pd.DataFrame(spec_list,columns=['0'])
+    #回傳單點OK/NG，整片NG次數
+    return spec_list,NG
+
+
+# ## 步驟7測試
+
+# In[35]:
+
+
+# #製作量測結果表格
+# # transform_real = pd.DataFrame([[500],[300],[500],[300],[500],[300],[500],[300]],columns=['0'])
+# transform_real = pd.DataFrame([[500],[500],[500],[200],[500],[500],[500],[500]],columns=['0'])
+# #變動統一index
+# transform_real.index=transform_real.index+1
+# #print(transform_real)
+# #判斷ok/ng
+# judge_table,state=judge_specification(transform_real)
+# transform_judge=pd.DataFrame(judge_table)
+# #print(transform_judge)
+
+# if state==0:
+#     print('整片正常')
+#     print(transform_real)
+# else:
+#     #刪除標題columns
+#     transform_judge=transform_judge.drop(transform_judge.index[[0,0]])
+#     #print(transform_judge)
+#     #結合原本的
+#     df_result=pd.concat([transform_real,transform_judge],axis=1)
+#     print('此片異常')
+#     print(df_result)
+
+
+# ## 0617測試
+
+# In[34]:
+
+
+# path='C:\\Users\\2102048\\pythonCV\\'
+# precutting(path+'find_cut\\temp\\',path+'find_cut\\cuttemp\\')
+# time.sleep
+# x_ray_cutting(path+'find_cut\\cuttemp\\',path+'find_cut\\cutresult\\')
+
+
+# ## 0609參數調整test
 
 # In[20]:
 
@@ -871,7 +1123,7 @@ def resetfile(path):
 
 
 def test_function():
-    print("===ok===")
+    print("===載入ok===")
 
 
 # In[ ]:
