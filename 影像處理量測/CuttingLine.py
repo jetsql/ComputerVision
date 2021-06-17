@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[65]:
+# In[1]:
 
 
 import glob
@@ -12,11 +12,12 @@ import pandas as pd
 from PIL import Image,ImageDraw
 import matplotlib.pyplot as plt
 import time #sleep 用
+##########規定用[\\]當路徑
 
 
 # ## 步驟1:設定閥值過濾sikulix截圖，判別有切兩刀
 
-# In[55]:
+# In[2]:
 
 
 #順序，先轉成二值化閥值，僅有0或255，再將影像轉成numpy，之後遍部numpy找尋0(黑色元素)
@@ -108,7 +109,7 @@ def find_CuttingLine(file,control):
 
 # ## 使用步驟1，並存ok影像
 
-# In[47]:
+# In[3]:
 
 
 #Use_function(Image,csv name)
@@ -156,7 +157,7 @@ def use_find_CuttingLine(input_path,output_path):
 
 # ## 步驟2:將ok影像切割左邊右邊
 
-# In[48]:
+# In[4]:
 
 
 #原始資料夾,切完存的資料夾
@@ -211,7 +212,7 @@ def precutting(input_path,output_path):
 
 # ## 步驟3:影像處理(霍夫曼取直線)
 
-# In[49]:
+# In[62]:
 
 
 ### 二值化&霍夫曼直線(處理過的圖像,原圖,要不要截圖)
@@ -219,25 +220,24 @@ def line(im_Bin,Im,input_path,output_path,name,control):
     try:
         #取影像大小，設定取霍夫曼區域
         c_column,c_row,color=Im.shape
-        c_row-=50
-        c_column-=50
     ##################影像前處理###########################
         # Erosion 影像侵蝕(二值化後)
         kernel = np.ones((3,3), np.uint8)
-        erosion = cv2.erode(img, kernel, iterations = 2)
+        #要放處理過的im_Bin
+        erosion = cv2.erode(im_Bin, kernel, iterations = 2)
 
         # #Dilation 影像膨脹(二值化後)
         kernel = np.ones((3,3), np.uint8)
         dilation = cv2.dilate(erosion, kernel, iterations = 2) #執行越多次膨脹效果越明顯
-        dilation= cv2.GaussianBlur(dilation, (5, 5), 0) # 用高斯平滑處理原影象降噪 
+        Blur= cv2.GaussianBlur(dilation, (5, 5), 0) # 用高斯平滑處理原影象降噪 
         #canny邊緣檢測
-        canny = cv2.Canny(dilation, 40, 120) #low_threshold:40, high_threshold:120
+        canny = cv2.Canny(Blur, 40, 120) #low_threshold:40, high_threshold:120
         cv2.imwrite(output_path +'Canny_'+name+input_path.split('\\')[-1], canny)
     ##################影像前處理###########################
         
         #直線檢測--霍夫直線變換
         #threshold:判斷直線點數的閾值; minLineLength：短於此的線段將被拒絕; maxLineGap 線段之間允許的最大間隙，將它們視為一條線
-        lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=2) #霍夫直線變換
+        lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=1) #霍夫直線變換
         lines1 = lines[:, 0, :]  # 提取為二維
         for x1, y1, x2, y2 in lines1[:]:
             if (((0<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column))):
@@ -307,14 +307,18 @@ def line(im_Bin,Im,input_path,output_path,name,control):
         print('H_line_gap %s pixel'% str(max(hline)-min(hline)))
         #return 垂直線&水平線的中心點value，min + (max-min)/2
         '''
-#         print("=======垂直=======",vline,"=============")
-#         print("=======水平=======",hline,"=============")
+        
         #mark水平線異常處理
         if name=='mark':
             temp=min(hline)
             temp+=35
             hline.append(temp)
+            
+        print("=======垂直=======",vline,"=============")
+        print("=======水平=======",hline,"=============")
         
+        print(min(vline)+float(max(vline)-min(vline))/2,float(min(hline))+float(max(hline)-min(hline))/2)
+
         return(min(vline)+float(max(vline)-min(vline))/2,float(min(hline))+float(max(hline)-min(hline))/2)
           
     #例外處理
@@ -341,9 +345,98 @@ def line(im_Bin,Im,input_path,output_path,name,control):
         
 
 
+# # Test
+
+# In[77]:
+
+
+# img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+# img_gray=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+# #降造(高斯平滑)
+# img_blurred=cv2.GaussianBlur(img_gray,(3,3),0)
+
+# #reload原圖
+# og_img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+
+# #二值化取mark (二值化閥水平)
+# thresh_mark=180
+# mark_bin=cv2.threshold(img_blurred,thresh_mark,255,cv2.THRESH_BINARY)[1]
+# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//mark_01.jpg',mark_bin)
+# mark_x,mark_y=line(mark_bin,img,'C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\','mark',1)
+
+# img=cv2.imread('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+
+# thresh_cut=130
+# cut_bin=cv2.threshold(img_blurred,thresh_cut,255,cv2.THRESH_BINARY)[1]
+# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//cut_01.jpg',cut_bin)
+# cut_x,cut_y=line(cut_bin,img,'C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\','cut',1)
+
+
+# #取影像大小，設定取霍夫曼區域
+# c_column,c_row,color=img.shape
+# ##################影像前處理###########################
+# # Erosion 影像侵蝕(二值化後)
+# kernel = np.ones((3,3), np.uint8)
+# erosion = cv2.erode(mark_bin, kernel, iterations = 3)
+
+# # #Dilation 影像膨脹(二值化後)
+# kernel = np.ones((3,3), np.uint8)
+# dilation = cv2.dilate(erosion, kernel, iterations = 3) #執行越多次膨脹效果越明顯
+# blur= cv2.GaussianBlur(dilation, (5, 5), 0) # 用高斯平滑處理原影象降噪 
+# #canny邊緣檢測
+# canny = cv2.Canny(blur, 40, 120) #low_threshold:40, high_threshold:120
+# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//Canny_001_01.jpg',canny)
+# plt.imshow(canny,cmap='gray')
+# plt.title('test')
+# plt.show()
+
+# #######################
+# #直線檢測--霍夫直線變換
+
+# #threshold:判斷直線點數的閾值; minLineLength：短於此的線段將被拒絕; maxLineGap 線段之間允許的最大間隙，將它們視為一條線
+# lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=1) #霍夫直線變換
+# lines1 = lines[:, 0, :]  # 提取為二維
+# for x1, y1, x2, y2 in lines1[:]:
+#     if (((0<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column))):
+#         cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+# cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//Hough_001_01.jpg',img)
+
+# i=1
+# vline=[]
+# hline=[]
+# for line in lines:
+#     '''
+#     print("line["+str(i-1)+"]=",line)
+#     '''
+#     x1,y1,x2,y2 = line[0] 
+
+#     x1 = float(x1)
+#     x2 = float(x2)
+#     y1 = float(y1)
+#     y2 = float(y2)
+#     '''
+#     print ("x1=%s,x2=%s,y1=%s,y2=%s" % (x1, x2, y1, y2))
+#     '''
+#     if ((x2 - x1 == 0 )and(((10<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column)))):
+
+#         result=90
+#         #記錄所有垂直線的x座標，最大-最小得出垂直線之間的距離
+#         vline.append(x1)
+#     #判斷水平線&定義的範圍
+#     elif ((y2 - y1 == 0) and (((10<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column)))):
+#         result=0
+#         hline.append(y1)
+#     i = i+1
+# #mark水平線異常處理
+
+# print("=======垂直=======",vline,"=============")
+# print("=======水平=======",hline,"=============")
+
+
 # ## 步驟四，計算角落
 
-# In[50]:
+# In[84]:
 
 
 #參數(照片角落順序,輸入路徑,輸出路徑,要不要顯示影像)
@@ -401,6 +494,7 @@ def Image_processing_calculation(order,input_path,output_path,control):
         #二值化取mark (二值化閥水平)
         thresh_mark=180
         mark_bin=cv2.threshold(img_blurred,thresh_mark,255,cv2.THRESH_BINARY)[1]
+        cv2.imwrite(output_path +'Thresh_mark'+'001.jpg', mark_bin)
         #print("=================霍夫曼取直線(mark)=======================")
         #霍夫曼取直線(mark)，參數(二值化圖,原圖,in,out,存檔名,要不要顯示)
         mark_x,mark_y=line(mark_bin,img,input_path,output_path,'mark',1)
@@ -408,9 +502,9 @@ def Image_processing_calculation(order,input_path,output_path,control):
 
 
         #二值化取cut (二值化閥水平)
-        thresh_cut=140
-
+        thresh_cut=130
         cut_bin=cv2.threshold(img_blurred,thresh_cut,255,cv2.THRESH_BINARY)[1]
+        cv2.imwrite(output_path +'Thresh_cut'+'001.jpg', cut_bin)
         #print("=================霍夫曼取直線(cut)=======================")
         #霍夫曼取直線(cut)，參數(二值化圖,原圖,in,out,存檔名,要不要顯示)
         cut_x,cut_y=line(cut_bin,og_img,input_path,output_path,'cut',1)
@@ -484,9 +578,17 @@ def Image_processing_calculation(order,input_path,output_path,control):
         
 
 
+# ## Test
+
+# In[82]:
+
+
+# Image_processing_calculation(1,'C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\',0)
+
+
 # ## 步驟五:換算真實座標
 
-# In[51]:
+# In[7]:
 
 
 #換算距離成真實數值
@@ -559,7 +661,7 @@ def real_measure(table,output_path,name):
 
 # ## 步驟六:使用步驟4、5分角落塞值
 
-# In[52]:
+# In[88]:
 
 
 def x_ray_cutting(input_path,output_path):
@@ -619,14 +721,14 @@ def x_ray_cutting(input_path,output_path):
                 
     #刪除資料夾
     #整個刪掉在建立新的
-    #shutil.rmtree(input_path)
-    #os.mkdir(input_path)
+    shutil.rmtree(input_path)
+    os.mkdir(input_path)
 
 
 
 # ## 參數調整test
 
-# In[113]:
+# In[20]:
 
 
 #=================第三階段改參數============================
@@ -638,14 +740,14 @@ def step3_test(canny,Im,name):
 
     
     #threshold:判斷直線點數的閾值; minLineLength：短於此的線段將被拒絕; maxLineGap 線段之間允許的最大間隙，將它們視為一條線
-    lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=2) #霍夫直線變換
+    lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=1) #霍夫直線變換
     lines1 = lines[:, 0, :]  # 提取為二維
     for x1, y1, x2, y2 in lines1[:]:
         if (((0<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column))):
             cv2.line(Im, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
     #存檔霍夫曼結果
-    cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//' +'Result_H'+name+'.jpg',Im)
+    cv2.imwrite('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\' +'Result_H'+name+'.jpg',Im)
     plt.imshow(Im,cmap='gray')
     plt.title('Hough')
     plt.show()
@@ -696,9 +798,9 @@ def step2_test(img,name):
     dilation = cv2.dilate(erosion, kernel, iterations = 2) #執行越多次膨脹效果越明顯
     dilation= cv2.GaussianBlur(dilation, (5, 5), 0) # 用高斯平滑處理原影象降噪 
     #canny邊緣檢測
-    canny = cv2.Canny(dilation, 40, 120) #low_threshold:30, high_threshold:150
+    canny = cv2.Canny(dilation, 50, 130) #low_threshold:30, high_threshold:150
     
-    cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//' +'Result_'+name+'.jpg',canny)
+    cv2.imwrite('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\' +'Result_'+name+'.jpg',canny)
     plt.imshow(cv2.cvtColor(canny,cv2.COLOR_GRAY2RGB))
     plt.title('Canny')
     plt.show()
@@ -708,7 +810,7 @@ def step2_test(img,name):
 def step1_test(input_path):
     img=cv2.imread(input_path)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) #grayscale conversion
-    blurred = cv2.GaussianBlur(gray, (3, 3), 0) # 用高斯平滑處理原影象降噪 
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0) # 用高斯平滑處理原影象降噪 
 
     #=================第一階段感參數============================
     #灰階
@@ -721,7 +823,7 @@ def step1_test(input_path):
     plt.imshow(mark_Bin,cmap='gray')
     plt.title('BIN_Mark')
     plt.show()
-    cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//' +'Preprocess_mark.jpg',mark_Bin)
+    cv2.imwrite('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\' +'Preprocess_mark.jpg',mark_Bin)
     
     #二值化，留切割
     thresh = 140
@@ -729,7 +831,7 @@ def step1_test(input_path):
     plt.imshow(cut_Bin,cmap='gray')
     plt.title('BIN_Cut')
     plt.show()
-    cv2.imwrite('C://Users//2102048//pythonCV//find_cut//cut_result//' +'Preprocess_cut.jpg',cut_Bin)
+    cv2.imwrite('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\' +'Preprocess_cut.jpg',cut_Bin)
     
     canny_mark=step2_test(mark_Bin,'mark')
     canny_cut=step2_test(cut_Bin,'cut')
@@ -737,7 +839,32 @@ def step1_test(input_path):
     step3_test(canny_cut,img,'cut')
     img=cv2.imread(input_path)
     step3_test(canny_mark,img,'mark')
-# step1_test('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\002_01.jpg')
+#step1_test('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
+
+
+# ## reset 資料夾
+
+# In[93]:
+
+
+def resetfile(path):
+    #刪除資料夾
+    #整個刪掉在建立新的
+    shutil.rmtree(path)
+    os.mkdir(path)
+
+
+# In[87]:
+
+
+# #過濾
+# use_find_CuttingLine('C:\\Users\\2102048\\pythonCV\\find_cut\\Screen\\','C:\\Users\\2102048\\pythonCV\\find_cut\\temp')
+# time.sleep(1)
+# #分邊
+# precutting('C:\\Users\\2102048\\pythonCV\\find_cut\\temp\\','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\')
+# time.sleep(1)
+# #計算
+# x_ray_cutting('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\','C:\\Users\\2102048\\pythonCV\\find_cut\\cut_result\\')
 
 
 # In[9]:
