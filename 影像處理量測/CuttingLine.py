@@ -15,9 +15,9 @@ import time #sleep 用
 ##########規定用[\\]當路徑##############
 
 
-# ## Test影像中的顏色
+# ## Test影像中的顏色、刪除資料夾
 
-# In[13]:
+# In[15]:
 
 
 def get_RGB(file,x,y):
@@ -30,12 +30,18 @@ def get_RGB(file,x,y):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     print("RGB={},{},{}".format(r,g,b))
+def resetfile(path):
+    time.sleep
+    #刪除資料夾
+    #整個刪掉在建立新的
+    shutil.rmtree(path)
+    os.mkdir(path)
 # get_RGB('C://Users//2102048//pythonCV//find_cut//cuttemp//Target_2021-06-09 202047.995411_01.jpg',50,50)
 
 
 # ## 步驟1:設定閥值過濾截圖，判別有切兩刀
 
-# In[14]:
+# In[3]:
 
 
 #順序，先轉成二值化閥值，僅有0或255，再將影像轉成numpy，之後遍部numpy找尋0(黑色元素)
@@ -125,7 +131,7 @@ def find_CuttingLine_o(file,control):
         return 0
 
 
-# In[15]:
+# In[4]:
 
 
 def crop_calculus(img,output_path):
@@ -158,7 +164,7 @@ def crop_calculus(img,output_path):
     return total
 
 
-# In[16]:
+# In[5]:
 
 
 #順序，先轉成二值化閥值，僅有0或255，再將影像轉成numpy，之後遍部numpy找尋0(黑色元素)
@@ -229,7 +235,7 @@ def find_CuttingLine(file,control,output_path):
 
 # ## 使用步驟1，並存ok影像
 
-# In[17]:
+# In[6]:
 
 
 #Use_function(Image,csv name)
@@ -275,7 +281,7 @@ def use_find_CuttingLine(input_path,output_path):
         print(file_list[i],'資料夾篩選結果',save_list)
 
 
-# In[18]:
+# In[7]:
 
 
 # path='C:\\Users\\2102048\\pythonCV\\'
@@ -284,7 +290,7 @@ def use_find_CuttingLine(input_path,output_path):
 
 # ## 步驟2:將ok影像切割左邊右邊
 
-# In[19]:
+# In[8]:
 
 
 #原始資料夾,切完存的資料夾
@@ -294,59 +300,55 @@ def use_find_CuttingLine(input_path,output_path):
 #in= Screen/temp 結束號刪掉
 #out= Screen/cut_temp
 def precutting(input_path,output_path):
-    try:
-        #path='C:\\Users\\2102048\\pythonCV\\Screen\\OG\\43_OG\\'
-        Filelist=glob.glob(input_path+'*.jpg')
-        #判斷有兩張才繼續
-        if len(Filelist)==2:
-            #依次讀取陣列裡面的每個檔案，並一一開啟來處理
-            for i,f in enumerate(Filelist):
-                #開一個檔案
-                img=cv2.imread(f)
-                c_column,c_row,color=img.shape
-                #取檔名
-                filename=(f.split('\\'))[-1]
-                #去除副檔名
-                name=filename[:-4]
-                #設定座標取左
-                #用相對位置，剪掉一些外框
-                point_left_1=(50,50)
-                point_left_2=(int((c_row/2)-20),int(c_column-50))
-                crop_left=img[point_left_1[1]:point_left_2[1],point_left_1[0]:point_left_2[0]]
-                save_left=name+'_01.jpg'
-                cv2.imwrite(output_path+save_left,crop_left)
-                #設定座標取右
-                #用相對位置，剪掉一些外框
-                point_right_1=(int((c_row/2)+20),50)
-                point_right_2=(int(c_row-20),int(c_column-50))
-                crop_right=img[point_right_1[1]:point_right_2[1],point_right_1[0]:point_right_2[0]]
-                save_right=name+'_02.jpg'
-                cv2.imwrite(output_path+save_right,crop_right)
-                
-            #刪除資料夾
-            #整個刪掉在建立新的
-            shutil.rmtree(input_path)
-            os.mkdir(input_path[0:-1])
-                
-            print("分割OK")
-            return 1
-        else:
-            return 0
-    except:
-        print("分割ERROR")
+
+    #path='C:\\Users\\2102048\\pythonCV\\Screen\\OG\\43_OG\\'
+    Filelist=glob.glob(input_path+'*.jpg')
+    #判斷有兩張才繼續
+    if len(Filelist)==2:
+        #依次讀取陣列裡面的每個檔案，並一一開啟來處理
+        for i,f in enumerate(Filelist):
+            #開一個檔案
+            img=cv2.imread(f)
+            c_column,c_row,color=img.shape
+            #取檔名
+            filename=(f.split('\\'))[-1]
+            #去除副檔名
+            name=filename[:-4]
+            #設定座標取左
+            #用相對位置，剪掉一些外框
+            point_left_1=(50,50)
+            point_left_2=(int((c_row/2)-20),int(c_column-50))
+            crop_left=img[point_left_1[1]:point_left_2[1],point_left_1[0]:point_left_2[0]]
+            save_left=name+'_01.jpg'
+            cv2.imwrite(output_path+save_left,crop_left)
+            #設定座標取右
+            #用相對位置，剪掉一些外框
+            point_right_1=(int((c_row/2)+20),50)
+            point_right_2=(int(c_row-20),int(c_column-50))
+            crop_right=img[point_right_1[1]:point_right_2[1],point_right_1[0]:point_right_2[0]]
+            save_right=name+'_02.jpg'
+            cv2.imwrite(output_path+save_right,crop_right)
+
+        #刪除資料夾
+        #整個刪掉在建立新的
+        resetfile(input_path[0:-1])
+
+        print("分割OK")
+        return 1
+    else:
         return 0
 
 
-# In[20]:
+# In[ ]:
 
 
 # path='C:\\Users\\2102048\\pythonCV\\'
-# precutting(path+'find_cut\\temp\\',path+'find_cut\\cuttemp')
+# precutting(path+'find_cut\\temp\\',path+'find_cut\\cuttemp\\')
 
 
 # ## 步驟3:影像處理(霍夫曼取直線)
 
-# In[21]:
+# In[7]:
 
 
 ### 二值化&霍夫曼直線(處理過的圖像,原圖,要不要截圖)
@@ -371,7 +373,7 @@ def line(im_Bin,Im,input_path,output_path,name,control):
         
         #直線檢測--霍夫直線變換
         #threshold:判斷直線點數的閾值; minLineLength：短於此的線段將被拒絕; maxLineGap 線段之間允許的最大間隙，將它們視為一條線
-        lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=2) #霍夫直線變換
+        lines = cv2.HoughLinesP(canny, 1, np.pi / 180, 50, minLineLength=30, maxLineGap=1) #霍夫直線變換
         lines1 = lines[:, 0, :]  # 提取為二維
         for x1, y1, x2, y2 in lines1[:]:
             if (((0<x1<c_row)or(10<x2<c_row))and((10<y1<c_column)or(10<y2<c_column))):
@@ -570,7 +572,7 @@ def line(im_Bin,Im,input_path,output_path,name,control):
 
 # ## 步驟四，計算角落
 
-# In[22]:
+# In[8]:
 
 
 #參數(照片角落順序,輸入路徑,輸出路徑,要不要顯示影像)
@@ -722,7 +724,7 @@ def Image_processing_calculation(order,input_path,output_path,control):
 
 # ## 步驟五:換算真實座標
 
-# In[23]:
+# In[9]:
 
 
 #########原始存檔###########
@@ -794,7 +796,7 @@ def real_measure_o(table,output_path,name):
     return(transform)
 
 
-# In[37]:
+# In[18]:
 
 
 #換算距離成真實數值
@@ -803,8 +805,8 @@ def real_measure(table,output_path,name):
     stendard=400
     #存結果
     point_list=[[]]
-    for i in range(8):
-        point=table.iloc[i,0]
+    for i in range(9):
+        point=table.iloc[i+1,0]
         if point>0:
             point=stendard+(point*4.1998)
             point_list.append([point])
@@ -823,16 +825,15 @@ def real_measure(table,output_path,name):
     
     #判斷整片精度狀況OK/NG
     if state==0:
-        df_result=transform_judge
         recode='此片正常'
 #         print(transform_real)
     else:
-        #刪除標題columns
-        transform_judge=transform_judge.drop(transform_judge.index[[0,0]])
-        #print(transform_judge)
-        #結合原本的
-        df_result=pd.concat([point_table,transform_judge],axis=1)
         recode='此片異常'
+    #刪除標題columns
+    transform_judge=transform_judge.drop(transform_judge.index[[0,0]])
+    #print(transform_judge)
+    #結合原本的
+    df_result=pd.concat([point_table,transform_judge],axis=1)
 #         print(df_result) 
     print("=========real===========")
     print(recode)
@@ -843,7 +844,7 @@ def real_measure(table,output_path,name):
 
 # ## 步驟六:使用步驟4、5分角落塞值
 
-# In[25]:
+# In[11]:
 
 
 def x_ray_cutting(input_path,output_path):
@@ -910,7 +911,7 @@ def x_ray_cutting(input_path,output_path):
 
 # ## 步驟7，判斷OK、NG
 
-# In[26]:
+# In[12]:
 
 
 def specification(shift):
@@ -969,7 +970,7 @@ def judge_specification(table):
 
 # ## 0617測試
 
-# In[34]:
+# In[19]:
 
 
 # path='C:\\Users\\2102048\\pythonCV\\'
@@ -1092,18 +1093,6 @@ def step1_test(input_path):
     img=cv2.imread(input_path)
     step3_test(canny_mark,img,'mark')
 #step1_test('C:\\Users\\2102048\\pythonCV\\find_cut\\cut_temp\\001_01.jpg')
-
-
-# ## reset 資料夾
-
-# In[93]:
-
-
-def resetfile(path):
-    #刪除資料夾
-    #整個刪掉在建立新的
-    shutil.rmtree(path)
-    os.mkdir(path)
 
 
 # In[87]:
